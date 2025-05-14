@@ -6,15 +6,18 @@ use humanize_bytes::humanize_bytes_binary;
 use runconfig::RunConfig;
 use std::collections::HashMap;
 use time::Duration;
-use trace::{Point, Trace};
+use trace::{Point, TimeStamp, Trace};
 use utils::{FilterErrors, FilterResults, PointResults, RunResults, avg_min_max};
 use yansi::{Condition, Paint};
+
+use crate::{span::Span, utils::SpanResults};
 
 mod args;
 mod bencher;
 mod device;
 mod filter;
 mod runconfig;
+mod span;
 mod trace;
 mod utils;
 
@@ -95,7 +98,7 @@ fn run_runconfig_filters(
     }
 }
 
-/// Process the points from thre traces. These are the traces per run_config.
+/// Process the points from the traces. These are the traces per run_config.
 fn run_runconfig_points(run_config: &RunConfig, traces: &[Trace], points: &mut PointResults) {
     let new_points: Vec<Point> = run_config
         .point_filters
