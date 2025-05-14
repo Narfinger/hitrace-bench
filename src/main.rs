@@ -6,12 +6,13 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 use std::{collections::HashMap, fs::File, io::BufWriter};
 use time::Duration;
-use trace::Trace;
+use trace::{difference_of_traces, Trace};
 use yansi::{Condition, Paint};
 
 mod args;
 mod device;
 mod filter;
+mod span;
 mod trace;
 
 struct AvgMingMax {
@@ -94,7 +95,7 @@ struct Latency {
 
 /// Converts duration to bencher Decimal representation
 fn difference_to_bencher_decimal(dur: &Duration) -> Decimal {
-    let number = dur.whole_nanoseconds() as i64;
+    let number = dur.whole_microseconds() as i64;
     Decimal::new(number, 3)
 }
 
@@ -160,7 +161,14 @@ fn main() -> Result<()> {
         if !args.bencher {
             println!("Running test {}", i);
         }
-        let log_path = device::exec_hdc_commands(&args)?;
+
+        let log_path = if let Some(ref pb) = args.file {
+            println!("Reading from file");
+            pb.clone()
+        } else {
+            device::exec_hdc_commands(&args)?
+        };
+
         let traces = device::read_file(&args, &log_path)?;
         let differences = filter::find_notable_differences(&traces, &filters);
         for (key, value) in differences.iter() {
@@ -181,6 +189,8 @@ fn main() -> Result<()> {
             }
             println!("----------------------------------------------------------\n\n");
         }
+        let stuff = span::find_span(String::from("Compositing"), &traces).unwrap();
+        println!("{:?}", difference_of_traces(stuff.1,stuff.0));
     }
 
     if args.computer_output {
@@ -190,6 +200,9 @@ fn main() -> Result<()> {
     } else {
         print_differences(&args, results, errors);
     }
+
+
+
 
     Ok(())
 }

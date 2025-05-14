@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -35,4 +37,8 @@ pub(crate) struct Args {
     /// Use Bencher output format
     #[arg(long, default_value_t = false)]
     pub(crate) bencher: bool,
+
+    /// Just read the traces from a file
+    #[arg(short, long)]
+    pub(crate) file: Option<PathBuf>,
 }

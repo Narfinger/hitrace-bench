@@ -80,6 +80,8 @@ pub(crate) fn exec_hdc_commands(args: &crate::Args) -> Result<PathBuf> {
             &args.homepage,
             "--ps=--pref",
             "js_disable_jit=true",
+            "--ps=--tracing-filter",
+            "trace",
         ])
         .output()?;
 
@@ -130,16 +132,16 @@ pub(crate) fn exec_hdc_commands(args: &crate::Args) -> Result<PathBuf> {
 
 /// There is always one trace per line
 /// This means that having no matched lines is ok and returns None. Having a parsing error returns Some(Err)
-fn line_to_trace(regex: &Regex, line: &str) -> Option<Result<Trace>> {
+fn line_to_trace_begin(regex: &Regex, line: &str) -> Option<Result<Trace>> {
     regex
         .captures_iter(line)
         .map(|c| c.extract())
-        .map(match_to_trace)
+        .map(match_to_trace_begin)
         .next()
 }
 
 /// Read a regex matched line into a trace
-fn match_to_trace(
+fn match_to_trace_begin(
     (
         _line,
         [
@@ -174,13 +176,58 @@ fn match_to_trace(
     })
 }
 
+fn line_to_trace_end(regex: &Regex, line: &str) -> Option<Result<Trace>> {
+    regex
+        .captures_iter(line)
+        .map(|c| c.extract())
+        .map(match_to_trace_end)
+        .next()
+}
+
+fn match_to_trace_end(
+    (
+        _line,
+        [
+            name,
+            pid,
+            cpu,
+            time1,
+            time2,
+            trace_marker,
+            number,
+        ],
+    ): (&str, [&str; 7]),
+) -> Result<Trace> {
+    let seconds = time1.parse()?;
+    let microseconds = time2.parse()?;
+    let timestamp = TimeStamp {
+        seconds,
+        micro: microseconds,
+    };
+    let trace_marker = TraceMarker::from(trace_marker)?;
+    Ok(Trace {
+        name: name.to_owned(),
+        pid: pid.parse().unwrap(),
+        cpu: cpu.parse().unwrap(),
+        trace_marker,
+        number: number.to_string(),
+        timestamp,
+        shorthand: String::new(),
+        function: String::new(),
+    })
+}
+
 /// Read a file into traces
 pub(crate) fn read_file(args: &Args, f: &Path) -> Result<Vec<Trace>> {
     // This is more specific servo tracing with the tracing_mark_write
     // Example trace: `org.servo.servo-44962   (  44682) [010] .... 17864.716645: tracing_mark_write: B|44682|ML: do_single_part3_compilation`
     let bundle_short = args.bundle_name.rsplit('.').next().ok_or(anyhow!("Your bundle name does not have a dot. We need a dot because hitrace sometimes does not show the whole bundle name"))?;
-    let regex = Regex::new(&format!(
-        r"^.(.*?{}.*?)\-(\d+)\s*\(\s*(\d+)\).*?(\d+)\.(\d+): tracing_mark_write: (.)\|(\d+?)\|(.*?):(.*?)\s*$",
+    let regex_trace_begin = Regex::new(&format!(
+        r"^.(.*?{}.*?)\-(\d+)\s*\(\s*(\d+)\).*?(\d+)\.(\d+): tracing_mark_write: ([BS])\|(\d+?)\|(.*?):(.*?)\s*$",
+        &bundle_short
+    ))?;
+    let regex_trace_end = Regex::new(&format!(
+        r"^.(.*?{}.*?)\-(\d+)\s*\(\s*(\d+)\).*?(\d+)\.(\d+): tracing_mark_write: ([EF])\|(\d+?)\|$",
         &bundle_short
     ))?;
     let f = File::open(f)?;
@@ -203,7 +250,11 @@ pub(crate) fn read_file(args: &Args, f: &Path) -> Result<Vec<Trace>> {
 
     valid_lines
         .into_iter()
-        .filter_map(|(_index, l)| line_to_trace(&regex, &l.unwrap()))
+        .filter_map(|(_index, l)| {
+
+            let l = l.unwrap();
+            line_to_trace_begin(&regex_trace_begin, &l).or(line_to_trace_end(&regex_trace_end, &l))
+        })
         .collect::<Result<Vec<Trace>>>()
         .context("Could not parse one thing")
 }
