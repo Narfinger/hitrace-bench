@@ -1,5 +1,3 @@
-use std::{cell::Cell, rc::Rc};
-
 use crate::Trace;
 
 #[derive(Debug)]
@@ -53,7 +51,6 @@ pub(crate) fn find_all_spans(fn_name: String, traces: &[Trace]) -> Vec<Span> {
 
         let start = traces.get(start_pos).unwrap();
         let end_position = find_end(start_pos, traces);
-        println!("{start_pos} {:?}", end_position);
 
         // add the trace
         if let Some(end_pos) = end_position {
@@ -66,8 +63,6 @@ pub(crate) fn find_all_spans(fn_name: String, traces: &[Trace]) -> Vec<Span> {
         } else {
             break;
         }
-        // we increased the pos previously
-        println!("{start_pos} {:?}", end_position);
         start_pos = end_position.unwrap();
     }
 
@@ -139,22 +134,44 @@ mod tests {
         new_trace("", 1, 14, TraceMarker::EndSync), // Foo ends
         ];
 
+            let res = find_all_spans(String::from("Foo"), &traces);
+            assert_eq!(res.len(), 2);
+            let first_span = &res[0];
+            let snd_span = &res[1];
 
-        let res = find_all_spans(String::from("Foo"), &traces);
-        assert_eq!(res.len(), 2);
-        let first_span = &res[0];
-        let snd_span = &res[1];
+            // First span
+            assert_eq!(first_span.start.function, "Foo");
+            assert_eq!(first_span.start.timestamp.seconds, 1);
+            assert_eq!(first_span.end.timestamp.seconds, 6);
 
-        // First span
-        assert_eq!(first_span.start.function, "Foo");
-        assert_eq!(first_span.start.timestamp.seconds, 1);
-        assert_eq!(first_span.end.timestamp.seconds, 6);
-
-        // Second span
-        assert_eq!(snd_span.start.function, "Foo");
-        assert_eq!(snd_span.start.timestamp.seconds, 7);
-        assert_eq!(snd_span.end.timestamp.seconds, 14);
+            // Second span
+            assert_eq!(snd_span.start.function, "Foo");
+            assert_eq!(snd_span.start.timestamp.seconds, 7);
+            assert_eq!(snd_span.end.timestamp.seconds, 14);
     }
 
 
+    #[test]
+    fn test_find_spans_ignore_wrong_pid() {
+        let traces = vec![
+        new_trace("Foo", 1, 1, TraceMarker::StartSync), // Foo starts
+        new_trace("Foo2", 1, 2, TraceMarker::StartSync),
+        new_trace("", 1, 3, TraceMarker::EndSync),
+        new_trace("Foo2", 1, 4, TraceMarker::StartSync),
+        new_trace("", 1, 5, TraceMarker::EndSync),
+        new_trace("", 2, 6, TraceMarker::EndSync),  //Foo does notends
+        new_trace("Foo2", 1, 8, TraceMarker::StartSync),
+        new_trace("Foo2", 1, 9, TraceMarker::StartSync),
+        new_trace("Foo2", 1, 10, TraceMarker::StartSync),
+        new_trace("", 1, 11, TraceMarker::EndSync),
+        new_trace("", 1, 12, TraceMarker::EndSync),
+        new_trace("", 1, 13, TraceMarker::EndSync),
+        new_trace("", 1, 14, TraceMarker::EndSync), // Foo ends
+        ];
+
+        let res = find_all_spans(String::from("Foo"), &traces);
+        assert_eq!(res.len(), 1);
+        assert_eq!(res[0].start.timestamp.seconds, 1);
+        assert_eq!(res[0].end.timestamp.seconds, 14);
+    }
 }
