@@ -2,6 +2,7 @@ use crate::Trace;
 
 #[derive(Debug)]
 /// A span, meaning a start trace and an end trace.
+#[allow(dead_code)]
 pub(crate) struct Span<'a> {
     /// The start trace where the span started. This contains most of the information
     pub(crate) start: &'a Trace,
