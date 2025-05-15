@@ -189,8 +189,8 @@ fn main() -> Result<()> {
             }
             println!("----------------------------------------------------------\n\n");
         }
-        let stuff = span::find_first_span(String::from("Compositing"), &traces).unwrap();
-        println!("{:?}", difference_of_traces(stuff.1,stuff.0));
+        let stuff = span::find_all_spans(String::from("Compositing"), &traces);
+        println!("{:?}", stuff.len());
     }
 
     if args.computer_output {
