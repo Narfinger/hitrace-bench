@@ -1,6 +1,6 @@
 use crate::Trace;
 
-pub(crate) fn find_span<'a>(string: String, traces: &'a [Trace]) -> Option<(&'a Trace, &'a Trace)> {
+pub(crate) fn find_first_span<'a>(string: String, traces: &'a [Trace]) -> Option<(&'a Trace, &'a Trace)> {
     let start_pos = traces.iter().position(|p| p.function==string).unwrap();
     let mut queue_size = 1;
     let start = traces.get(start_pos).unwrap();
@@ -10,23 +10,25 @@ pub(crate) fn find_span<'a>(string: String, traces: &'a [Trace]) -> Option<(&'a 
     while pos!= traces.len() && queue_size!=0 {
         println!("Queue size {:?}", queue_size);
         let trace = traces.get(pos).unwrap();
-        queue_size = match trace.trace_marker {
-            crate::trace::TraceMarker::StartSync => { queue_size+1 },
-            crate::trace::TraceMarker::EndSync => {
-                println!("Finding ending marker at queue size {:?}", queue_size);
-                queue_size -1 },
-            crate::trace::TraceMarker::StartAsync => { queue_size +1 },
-            crate::trace::TraceMarker::EndAsync => { queue_size -1 },
-            crate::trace::TraceMarker::Dot => {queue_size},
-        };
-        pos +=1;
+        if trace.pid== start.pid && trace.cpu == start.cpu {
+            queue_size = match trace.trace_marker {
+                crate::trace::TraceMarker::StartSync => { queue_size+1 },
+                crate::trace::TraceMarker::EndSync => {
+                    println!("Finding ending marker at queue size {:?}", queue_size);
+                    queue_size -1 },
+                    crate::trace::TraceMarker::StartAsync => { queue_size +1 },
+                    crate::trace::TraceMarker::EndAsync => { queue_size -1 },
+                    crate::trace::TraceMarker::Dot => {queue_size},
+                };
+            }
+            pos +=1;
     }
 
     if pos == traces.len() {
         println!("Reached and");
         None
     } else {
-        let end = traces.get(pos).unwrap();
+        let end = traces.get(pos-1).unwrap();
         println!("Found {:?} {:?}", start, end);
         Some((start, end))
 
