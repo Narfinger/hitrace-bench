@@ -3,7 +3,10 @@ use serde::Deserialize;
 use std::{collections::HashMap, fs::File, io::BufReader, path::PathBuf};
 use time::Duration;
 
-use crate::{Trace, trace::difference_of_traces};
+use crate::{
+    Trace,
+    trace::{Point, TraceMarker, difference_of_traces},
+};
 
 /// Way to construct filters
 pub(crate) struct Filter {
@@ -39,6 +42,36 @@ impl Filter {
         };
 
         (&self.name, result)
+    }
+}
+
+/// You might want to extract data points. These do not have a beginning and end put just a point
+#[derive(Deserialize)]
+pub(crate) struct PointFilter {
+    /// The name we will use for this string
+    pub(crate) name: String,
+    /// We substring match on this
+    pub(crate) match_str: String,
+}
+
+impl<'a> PointFilter {
+    pub(crate) fn pointfilter_to_point(&self, traces: &'a [Trace]) -> Vec<Point<'a>> {
+        traces
+            .iter()
+            .filter(|t| t.trace_marker == TraceMarker::Dot)
+            .filter(|t| t.function.contains(&self.match_str))
+            .map(|t| {
+                let mut substrings = t.function.split_whitespace();
+                Point {
+                    name: substrings.next().expect("Could not split string"),
+                    value: substrings
+                        .next()
+                        .expect("Could not split string")
+                        .parse()
+                        .expect("Could not parse number"),
+                }
+            })
+            .collect()
     }
 }
 

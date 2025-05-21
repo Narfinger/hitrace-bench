@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, anyhow};
 use args::Args;
 use clap::Parser;
-use filter::Filter;
+use filter::{Filter, PointFilter};
 use runconfig::RunConfig;
 use rust_decimal::Decimal;
 use serde::Serialize;
@@ -142,7 +142,7 @@ fn main() -> Result<()> {
             runconfig::read_run_file(&file)?
         } else if let Some(ref path) = args.filter_file {
             let filters = filter::read_filter_file(path)?;
-            vec![RunConfig::new(args, filters)]
+            vec![RunConfig::new(args, filters, vec![])]
         } else {
             let filters = vec![
                 Filter {
@@ -156,7 +156,11 @@ fn main() -> Result<()> {
                     last: Box::new(|t: &Trace| t.function.contains("PageLoadEndedPrompt")),
                 },
             ];
-            vec![RunConfig::new(args, filters)]
+            let point_filters = vec![PointFilter {
+                name: String::from("VSize"),
+                match_str: String::from("servo_memory_profiling:vsize"),
+            }];
+            vec![RunConfig::new(args, filters, point_filters)]
         }
     };
 
