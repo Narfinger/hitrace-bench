@@ -5,6 +5,7 @@ use time::Duration;
 
 use crate::{
     Trace,
+    runconfig::JsonFilterDescription,
     trace::{Point, TraceMarker, difference_of_traces},
 };
 
@@ -45,7 +46,7 @@ impl Filter {
     }
 }
 
-/// You might want to extract data points. These do not have a beginning and end put just a point
+/// You might want to extract data points. These do not have a beginning and end, just a point.
 #[derive(Deserialize)]
 pub(crate) struct PointFilter {
     /// The name we will use for this string
@@ -54,8 +55,8 @@ pub(crate) struct PointFilter {
     pub(crate) match_str: String,
 }
 
-impl<'a> PointFilter {
-    pub(crate) fn pointfilter_to_point(&self, traces: &'a [Trace]) -> Vec<Point<'a>> {
+impl PointFilter {
+    pub(crate) fn pointfilter_to_point(&self, traces: &[Trace]) -> Vec<Point> {
         traces
             .iter()
             .filter(|t| t.trace_marker == TraceMarker::Dot)
@@ -63,7 +64,10 @@ impl<'a> PointFilter {
             .map(|t| {
                 let mut substrings = t.function.split_whitespace();
                 Point {
-                    name: substrings.next().expect("Could not split string"),
+                    name: substrings
+                        .next()
+                        .expect("Could not split string")
+                        .to_owned(),
                     value: substrings
                         .next()
                         .expect("Could not split string")
@@ -84,27 +88,6 @@ pub(crate) fn find_notable_differences<'a>(
         .iter()
         .map(|filter| filter.filter_to_duration(v))
         .collect()
-}
-
-#[derive(Deserialize)]
-/// The json type to filter
-pub(crate) struct JsonFilterDescription {
-    /// The name the filter should have
-    name: String,
-    /// We will match the start of the filter to contain this function name
-    start_fn_partial: String,
-    /// We will match the end of the filter to contain this function name
-    end_fn_partial: String,
-}
-
-impl From<JsonFilterDescription> for Filter {
-    fn from(value: JsonFilterDescription) -> Self {
-        Filter {
-            name: value.name,
-            first: Box::new(move |trace: &Trace| trace.function.contains(&value.start_fn_partial)),
-            last: Box::new(move |trace: &Trace| trace.function.contains(&value.end_fn_partial)),
-        }
-    }
 }
 
 pub(crate) fn read_filter_file(path: &PathBuf) -> Result<Vec<Filter>> {

@@ -1,6 +1,5 @@
 /// Functions about the traces
 use anyhow::{Result, anyhow};
-use serde::Deserialize;
 use std::fmt::{Debug, Display, write};
 use time::Duration;
 
@@ -73,7 +72,8 @@ pub(crate) fn difference_of_traces(trace1: &Trace, trace2: &Trace) -> Duration {
     )
 }
 
-pub(crate) struct Point<'a> {
-    pub(crate) name: &'a str,
+#[derive(Debug)]
+pub(crate) struct Point {
+    pub(crate) name: String,
     pub(crate) value: u64,
 }

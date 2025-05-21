@@ -25,6 +25,12 @@
                 "start_fn_partial": "on_surface_created_cb",
                 "end_fn_partial": "PageLoadEndedPrompt"
             }
+        ],
+        "point_filter": [
+            {
+                "name": "vsize",
+                "match_str": "servo_memory_profiling:vsize"
+            }
         ]
     },
     {
