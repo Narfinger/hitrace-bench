@@ -33,7 +33,7 @@ fn print_differences(args: &Args, results: RunResults) {
         args.url
     );
     for (key, val) in results.filter_results.iter() {
-        let avg_min_max = avg_min_max(val);
+        let avg_min_max = avg_min_max::<Duration, u16>(val);
         println!(
             "{}: {} {} {}  ({} runs)",
             key,
@@ -47,7 +47,7 @@ fn print_differences(args: &Args, results: RunResults) {
     if !results.point_results.is_empty() {
         println!("-----------Points-------------------------");
         for (key, val) in results.point_results.iter() {
-            let avg_min_max = avg_min_max(val);
+            let avg_min_max = avg_min_max::<u64, u64>(val);
             println!(
                 "{}: {} {} {}  ({} runs)",
                 key,
@@ -139,9 +139,9 @@ fn run_runconfig(
 fn run_runconfigs(run_configs: &Vec<RunConfig>, use_bencher: bool) -> Result<()> {
     // bencher needs all runs, while a normal output can have the runs one after the other
     if !use_bencher {
-        let mut filter_results: HashMap<String, Vec<Duration>> = HashMap::new();
-        let mut errors: HashMap<String, u32> = HashMap::new();
-        let mut point_results: HashMap<String, Vec<u32>> = HashMap::new();
+        let mut filter_results = HashMap::new();
+        let mut errors = HashMap::new();
+        let mut point_results = HashMap::new();
         for run_config in run_configs {
             run_runconfig(
                 run_config,

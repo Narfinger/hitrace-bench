@@ -75,5 +75,5 @@ pub(crate) fn difference_of_traces(trace1: &Trace, trace2: &Trace) -> Duration {
 #[derive(Debug)]
 pub(crate) struct Point {
     pub(crate) name: String,
-    pub(crate) value: u32,
+    pub(crate) value: u64,
 }

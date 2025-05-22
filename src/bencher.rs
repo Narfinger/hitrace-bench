@@ -42,7 +42,7 @@ enum Bencher<'a> {
 /// We also add some custom strings to the filter.
 pub(crate) fn write_results(result: RunResults) {
     let filters_iter = result.filter_results.into_iter().map(|(key, dur_vec)| {
-        let avg_min_max = avg_min_max::<Duration>(&dur_vec);
+        let avg_min_max = avg_min_max::<Duration, u16>(&dur_vec);
         // yes we need this hashmap for the correct json
         let mut map = HashMap::new();
         map.insert(
@@ -59,7 +59,7 @@ pub(crate) fn write_results(result: RunResults) {
 
     let points_iter = result.point_results.into_iter().map(|(key, points)| {
         let mut map = HashMap::new();
-        let avg_min_max = avg_min_max(&points);
+        let avg_min_max = avg_min_max::<u64, u64>(&points);
         map.insert(
             "Size",
             Latency {
