@@ -190,7 +190,7 @@ fn main() -> Result<()> {
             ];
             let point_filters = vec![PointFilter {
                 name: String::from("VSize"),
-                match_str: String::from("servo_memory_profiling:vsize"),
+                match_str: String::from("servo_memory_profiling:"),
             }];
             vec![RunConfig::new(args, filters, point_filters)]
         }

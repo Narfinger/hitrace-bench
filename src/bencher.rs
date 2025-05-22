@@ -8,7 +8,7 @@ use crate::{Point, RunResults, avg_min_max};
 
 #[derive(Debug, Serialize)]
 /// Struct for bencher json
-struct Latency {
+struct LoadSpeed {
     #[serde(with = "rust_decimal::serde::float")]
     value: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
@@ -28,12 +28,12 @@ fn difference_to_bencher_decimal(dur: &Duration) -> Decimal {
     Decimal::from_i128_with_scale(number, 0)
 }
 
-type BencherLatency<'a> = HashMap<&'a str, Latency>;
+type BencherLatency<'a> = HashMap<&'a str, LoadSpeed>;
 type BencherPoint<'a> = HashMap<&'a str, SingleBencherPoint>;
 #[derive(Serialize)]
 #[serde(untagged)]
 enum Bencher<'a> {
-    Latency(BencherLatency<'a>),
+    LoadSpeed(BencherLatency<'a>),
     Point(BencherPoint<'a>),
 }
 
@@ -47,15 +47,15 @@ pub(crate) fn write_results(result: RunResults, points: Vec<Vec<Point>>) {
         let mut map = HashMap::new();
         if let Some(avg_min_max) = avg_min_max {
             map.insert(
-                "latency",
-                Latency {
+                "LoadSpeed",
+                LoadSpeed {
                     value: difference_to_bencher_decimal(&avg_min_max.avg),
                     lower_value: difference_to_bencher_decimal(&avg_min_max.min),
                     upper_value: difference_to_bencher_decimal(&avg_min_max.max),
                 },
             );
         }
-        (key, Bencher::Latency(map))
+        (key, Bencher::LoadSpeed(map))
     });
 
     let points_iter = points.into_iter().flatten().map(|p| {

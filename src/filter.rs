@@ -62,18 +62,28 @@ impl PointFilter {
             .filter(|t| t.trace_marker == TraceMarker::Dot)
             .filter(|t| t.function.contains(&self.match_str))
             .map(|t| {
-                let mut substrings = t.function.split_whitespace();
-                Point {
-                    name: substrings
-                        .next()
-                        .expect("Could not split string")
-                        .to_owned(),
-                    value: substrings
-                        .next()
-                        .expect("Could not split string")
-                        .parse()
-                        .expect("Could not parse number"),
-                }
+                let value_string = t
+                    .function
+                    .split_whitespace()
+                    .last()
+                    .with_context(|| format!("Error in parsing trace {:?}", t))
+                    .expect("Could not parse trace for last value");
+
+                let value = value_string
+                    .parse()
+                    .with_context(|| format!("Error in parsing trace {:?}", t))
+                    .expect("Could not parse number");
+
+                // remove the matching string at the front and value at the end
+                let name = t
+                    .function
+                    .strip_prefix(&self.match_str)
+                    .and_then(|s| s.strip_suffix(&value_string))
+                    .with_context(|| format!("Error in parsing trace {:?}", t))
+                    .expect("Could not get name for trace")
+                    .to_owned();
+
+                Point { name, value }
             })
             .collect()
     }
