@@ -3,10 +3,10 @@ use args::Args;
 use clap::Parser;
 use filter::{Filter, PointFilter};
 use runconfig::RunConfig;
-use std::{collections::HashMap, iter::Sum};
+use std::collections::HashMap;
 use time::Duration;
 use trace::{Point, Trace};
-use utils::avg_min_max;
+use utils::{FilterErrors, FilterResults, PointResults, RunResults, avg_min_max};
 use yansi::{Condition, Paint};
 
 mod args;
@@ -18,14 +18,9 @@ mod trace;
 mod utils;
 
 /// Print the differences
-fn print_differences(
-    args: &Args,
-    results: &RunResults,
-    errors: &HashMap<String, u32>,
-    points: &[Vec<Point>],
-) {
+fn print_differences(args: &Args, results: RunResults) {
     println!("The following things broke with errors");
-    for (key, val) in errors.iter() {
+    for (key, val) in results.errors.iter() {
         println!("{}: {} errors", key, val);
     }
 
@@ -37,7 +32,7 @@ fn print_differences(
         args.tries,
         args.url
     );
-    for (key, val) in results.iter() {
+    for (key, val) in results.filter_results.iter() {
         let avg_min_max = avg_min_max(val);
         println!(
             "{}: {} {} {}  ({} runs)",
@@ -49,11 +44,61 @@ fn print_differences(
         );
     }
 
-    if !points.is_empty() {
+    if !results.point_results.is_empty() {
         println!("-----------Points-------------------------");
-        for i in points.iter().flatten() {
-            println!("{}: {}", i.name, i.value);
+        for (key, val) in results.point_results.iter() {
+            let avg_min_max = avg_min_max(val);
+            println!(
+                "{}: {} {} {}  ({} runs)",
+                key,
+                avg_min_max.avg.yellow().whenever(Condition::TTY_AND_COLOR),
+                avg_min_max.min.green().whenever(Condition::TTY_AND_COLOR),
+                avg_min_max.max.red().whenever(Condition::TTY_AND_COLOR),
+                avg_min_max.number,
+            );
         }
+    }
+}
+
+/// Process the filters from traces
+fn run_runconfig_filters(
+    run_config: &RunConfig,
+    traces: &[Trace],
+    results: &mut FilterResults,
+    errors: &mut FilterErrors,
+    use_bencher: bool,
+) {
+    // Collect differences
+    let differences = filter::find_notable_differences(traces, &run_config.filters);
+    for (original_key, value) in differences.into_iter() {
+        let key = if use_bencher {
+            let new_key = format!("E2E/{}/{}", run_config.args.url, original_key);
+            new_key
+        } else {
+            original_key.to_owned()
+        };
+        if let Ok(d) = value {
+            results
+                .entry(key)
+                .and_modify(|v| v.push(d))
+                .or_insert(vec![(d)]);
+        } else {
+            errors.entry(key).and_modify(|v| *v += 1).or_insert(1);
+        }
+    }
+}
+
+fn run_runconfig_points(run_config: &RunConfig, traces: &[Trace], points: &mut PointResults) {
+    let new_points: Vec<Point> = run_config
+        .point_filters
+        .iter()
+        .flat_map(|f| f.pointfilter_to_point(traces))
+        .collect();
+    for p in new_points {
+        points
+            .entry(p.name)
+            .and_modify(|v| v.push(p.value))
+            .or_insert(vec![p.value]);
     }
 }
 
@@ -61,9 +106,9 @@ fn print_differences(
 fn run_runconfig(
     run_config: &RunConfig,
     use_bencher: bool,
-    results: &mut HashMap<String, Vec<Duration>>,
-    errors: &mut HashMap<String, u32>,
-    points: &mut Vec<Vec<Point>>,
+    results: &mut FilterResults,
+    errors: &mut FilterErrors,
+    points: &mut PointResults,
 ) -> Result<()> {
     for i in 1..run_config.args.tries + 1 {
         if !run_config.args.bencher {
@@ -75,32 +120,8 @@ fn run_runconfig(
             let log_path = device::exec_hdc_commands(&run_config.args)?;
             device::read_file(&log_path)?
         };
-
-        // Collect differences
-        let differences = filter::find_notable_differences(&traces, &run_config.filters);
-        for (original_key, value) in differences.into_iter() {
-            let key = if use_bencher {
-                let new_key = format!("E2E/{}/{}", run_config.args.url, original_key);
-                new_key
-            } else {
-                original_key.to_owned()
-            };
-            if let Ok(d) = value {
-                results
-                    .entry(key)
-                    .and_modify(|v| v.push(d))
-                    .or_insert(vec![(d)]);
-            } else {
-                errors.entry(key).and_modify(|v| *v += 1).or_insert(1);
-            }
-
-            let new_points: Vec<Point> = run_config
-                .point_filters
-                .iter()
-                .flat_map(|f| f.pointfilter_to_point(&traces))
-                .collect();
-            points.push(new_points);
-        }
+        run_runconfig_filters(run_config, &traces, results, errors, use_bencher);
+        run_runconfig_points(run_config, &traces, points);
 
         if run_config.args.tries == 1 && run_config.args.all_traces {
             println!("Printing {} traces", &traces.len());
@@ -116,27 +137,46 @@ fn run_runconfig(
 /// Runs runconfigs
 /// Bencher has to be treated separately because it wants a valid json output.
 fn run_runconfigs(run_configs: &Vec<RunConfig>, use_bencher: bool) -> Result<()> {
-    let mut results: HashMap<String, Vec<Duration>> = HashMap::new();
-    let mut errors: HashMap<String, u32> = HashMap::new();
-    let mut points = Vec::new();
-    for run_config in run_configs {
-        run_runconfig(
-            run_config,
-            use_bencher,
-            &mut results,
-            &mut errors,
-            &mut points,
-        )?;
-
-        if !use_bencher {
-            print_differences(&run_config.args, &results, &errors, &points);
-            results = HashMap::new();
-            errors = HashMap::new();
+    // bencher needs all runs, while a normal output can have the runs one after the other
+    if !use_bencher {
+        let mut filter_results: HashMap<String, Vec<Duration>> = HashMap::new();
+        let mut errors: HashMap<String, u32> = HashMap::new();
+        let mut point_results: HashMap<String, Vec<u32>> = HashMap::new();
+        for run_config in run_configs {
+            run_runconfig(
+                run_config,
+                use_bencher,
+                &mut filter_results,
+                &mut errors,
+                &mut point_results,
+            )?;
         }
-    }
-
-    if use_bencher {
-        bencher::write_results(results, points)
+        bencher::write_results(RunResults {
+            filter_results,
+            errors,
+            point_results,
+        })
+    } else {
+        for run_config in run_configs {
+            let mut filter_results = HashMap::new();
+            let mut errors = HashMap::new();
+            let mut point_results = HashMap::new();
+            run_runconfig(
+                run_config,
+                use_bencher,
+                &mut filter_results,
+                &mut errors,
+                &mut point_results,
+            )?;
+            print_differences(
+                &run_config.args,
+                RunResults {
+                    filter_results,
+                    errors,
+                    point_results,
+                },
+            );
+        }
     }
     Ok(())
 }

@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 use time::Duration;
 
-use crate::{Point, avg_min_max, utils::RunResults};
+use crate::{avg_min_max, utils::RunResults};
 
 #[derive(Debug, Serialize)]
 /// Struct for bencher json
@@ -59,15 +59,16 @@ pub(crate) fn write_results(result: RunResults) {
 
     let points_iter = result.point_results.into_iter().map(|(key, points)| {
         let mut map = HashMap::new();
-        let point_values: Vec<u64> = points.into_iter().map(|p| p.value).collect();
-        let avg_min_max = avg_min_max(&point_values);
+        let avg_min_max = avg_min_max(&points);
         map.insert(
-            key,
+            "Size",
             Latency {
-                value: Decimal::from_i128_with_scale(p.value as i128, 0),
+                value: Decimal::from_i128_with_scale(avg_min_max.avg as i128, 0),
+                lower_value: Decimal::from_i128_with_scale(avg_min_max.min as i128, 0),
+                upper_value: Decimal::from_i128_with_scale(avg_min_max.max as i128, 0),
             },
         );
-        (p.name, Bencher::Point(map))
+        (key, Bencher::Latency(map))
     });
 
     let b: HashMap<String, Bencher> = filters_iter.chain(points_iter).collect();
