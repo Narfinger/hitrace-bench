@@ -138,7 +138,7 @@ fn run_runconfig(
 /// Bencher has to be treated separately because it wants a valid json output.
 fn run_runconfigs(run_configs: &Vec<RunConfig>, use_bencher: bool) -> Result<()> {
     // bencher needs all runs, while a normal output can have the runs one after the other
-    if !use_bencher {
+    if use_bencher {
         let mut filter_results = HashMap::new();
         let mut errors = HashMap::new();
         let mut point_results = HashMap::new();
