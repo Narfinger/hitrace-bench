@@ -3,9 +3,10 @@ use args::Args;
 use clap::Parser;
 use filter::{Filter, PointFilter};
 use runconfig::RunConfig;
-use std::collections::HashMap;
+use std::{collections::HashMap, iter::Sum};
 use time::Duration;
 use trace::{Point, Trace};
+use utils::avg_min_max;
 use yansi::{Condition, Paint};
 
 mod args;
@@ -14,27 +15,7 @@ mod device;
 mod filter;
 mod runconfig;
 mod trace;
-
-struct AvgMingMax {
-    avg: Duration,
-    min: Duration,
-    max: Duration,
-    number: usize,
-}
-
-fn avg_min_max(durations: &[Duration]) -> Option<AvgMingMax> {
-    let number = durations.len();
-    durations
-        .iter()
-        .min()
-        .zip(durations.iter().max())
-        .map(|(min, max)| AvgMingMax {
-            avg: durations.iter().sum::<Duration>() / number as f64,
-            min: *min,
-            max: *max,
-            number,
-        })
-}
+mod utils;
 
 /// Print the differences
 fn print_differences(
@@ -57,18 +38,15 @@ fn print_differences(
         args.url
     );
     for (key, val) in results.iter() {
-        if let Some(avg_min_max) = avg_min_max(val) {
-            println!(
-                "{}: {} {} {}  ({} runs)",
-                key,
-                avg_min_max.avg.yellow().whenever(Condition::TTY_AND_COLOR),
-                avg_min_max.min.green().whenever(Condition::TTY_AND_COLOR),
-                avg_min_max.max.red().whenever(Condition::TTY_AND_COLOR),
-                avg_min_max.number,
-            );
-        } else {
-            println!("{}: _ _ _  (0 runs)", key);
-        }
+        let avg_min_max = avg_min_max(val);
+        println!(
+            "{}: {} {} {}  ({} runs)",
+            key,
+            avg_min_max.avg.yellow().whenever(Condition::TTY_AND_COLOR),
+            avg_min_max.min.green().whenever(Condition::TTY_AND_COLOR),
+            avg_min_max.max.red().whenever(Condition::TTY_AND_COLOR),
+            avg_min_max.number,
+        );
     }
 
     if !points.is_empty() {
@@ -78,10 +56,6 @@ fn print_differences(
         }
     }
 }
-
-/// The results of a run given by filter.name, Vec<duration>
-/// Notice that not all vectors will have the same length as some runs might fail.
-type RunResults = HashMap<String, Vec<Duration>>;
 
 /// Runs one RunConfig and append the results to the results, errors and points
 fn run_runconfig(
