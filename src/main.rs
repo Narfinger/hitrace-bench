@@ -61,8 +61,18 @@ fn print_differences(args: &RunArgs, results: RunResults) {
         sorted_points.sort_by(|x, y| x.0.cmp(&y.0));
         for (key, val) in sorted_points {
             let avg_min_max =
-                avg_min_max::<u64, u64>(&val.result.iter().map(|p| p.values()).collect::<Vec<_>>());
-            if let Some(&PointValue::Size(_)) = val.result.get(0) {
+                avg_min_max::<u64, u64>(&val.result.iter().map(|p| p.value()).collect::<Vec<_>>());
+            if let Some(PointValue::Custom(measurement, _)) = val.result.first() {
+                println!(
+                    "{}: {} {} {} ({} runs, measuring {})",
+                    key,
+                    avg_min_max.avg.yellow().whenever(Condition::TTY_AND_COLOR),
+                    avg_min_max.min.green().whenever(Condition::TTY_AND_COLOR),
+                    avg_min_max.max.red().whenever(Condition::TTY_AND_COLOR),
+                    avg_min_max.number,
+                    measurement
+                );
+            } else {
                 println!(
                     "{}: {} {} {}  ({} runs)",
                     key,
@@ -76,15 +86,6 @@ fn print_differences(args: &RunArgs, results: RunResults) {
                         .red()
                         .whenever(Condition::TTY_AND_COLOR),
                     avg_min_max.number,
-                );
-            } else {
-                println!(
-                    "{}: {} {} {} ({} runs)",
-                    key,
-                    avg_min_max.avg.yellow().whenever(Condition::TTY_AND_COLOR),
-                    avg_min_max.min.green().whenever(Condition::TTY_AND_COLOR),
-                    avg_min_max.max.red().whenever(Condition::TTY_AND_COLOR),
-                    avg_min_max.number
                 );
             }
         }

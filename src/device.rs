@@ -82,6 +82,9 @@ pub(crate) fn exec_hdc_commands(run_args: &RunArgs, is_rooted: bool) -> Result<P
                 "Uploading to {} visible as {}",
                 device_file_path.on_device, device_file_path.in_app
             );
+            if !PathBuf::from(&device_file_path.stem).exists() {
+                return Err(anyhow!("Could not upload file and we are rooted"));
+            }
             Command::new(&hdc)
                 .args([
                     "file",

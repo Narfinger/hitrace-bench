@@ -62,7 +62,7 @@ fn filter_iterator(result: &RunResults) -> impl std::iter::Iterator<Item = (Stri
 fn points_iterator(run_results: &RunResults) -> impl std::iter::Iterator<Item = (String, Bencher)> {
     run_results.point_results.iter().map(|(key, points)| {
         // All points should have the same unit because they are the same point from different runs
-        let name = match points.result.get(0) {
+        let name = match points.result.first() {
             Some(PointValue::Size(_)) => "Memory",
             Some(PointValue::Custom(name, _)) => name,
             None => "undefined",
@@ -72,7 +72,7 @@ fn points_iterator(run_results: &RunResults) -> impl std::iter::Iterator<Item = 
             &points
                 .result
                 .iter()
-                .map(|p| p.values())
+                .map(|p| p.value())
                 .collect::<Vec<u64>>(),
         );
         map.insert(
@@ -83,7 +83,7 @@ fn points_iterator(run_results: &RunResults) -> impl std::iter::Iterator<Item = 
                 upper_value: Decimal::from_i128_with_scale(avg_min_max.max as i128, 0),
             },
         );
-        (bencher_key(run_results, &key), Bencher::Latency(map))
+        (bencher_key(run_results, key), Bencher::Latency(map))
     })
 }
 
