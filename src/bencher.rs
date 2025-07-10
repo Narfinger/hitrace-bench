@@ -5,11 +5,11 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 use time::Duration;
 
-use crate::{avg_min_max, utils::RunResults};
+use crate::{avg_min_max, point_filters::PointValue, utils::RunResults};
 
 #[derive(Debug, Serialize)]
 /// Struct for bencher json
-struct Latency {
+struct Truple {
     #[serde(with = "rust_decimal::serde::float")]
     value: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
@@ -24,11 +24,11 @@ fn difference_to_bencher_decimal(dur: &Duration) -> Decimal {
     Decimal::from_i128_with_scale(number, 0)
 }
 
-type BencherLatency<'a> = HashMap<&'a str, Latency>;
+type BencherTruple<'a> = HashMap<&'a str, Truple>;
 #[derive(Serialize)]
 #[serde(untagged)]
 enum Bencher<'a> {
-    Latency(BencherLatency<'a>),
+    Latency(BencherTruple<'a>),
 }
 
 /// Creates a bencher key adding the E2E and prepend result
@@ -48,7 +48,7 @@ fn filter_iterator(result: &RunResults) -> impl std::iter::Iterator<Item = (Stri
         let mut map = HashMap::new();
         map.insert(
             "Latency",
-            Latency {
+            Truple {
                 value: difference_to_bencher_decimal(&avg_min_max.avg),
                 lower_value: difference_to_bencher_decimal(&avg_min_max.min),
                 upper_value: difference_to_bencher_decimal(&avg_min_max.max),
@@ -59,24 +59,31 @@ fn filter_iterator(result: &RunResults) -> impl std::iter::Iterator<Item = (Stri
 }
 
 /// Creates an iterator for the point results with the appropriate map
-fn points_iterator(result: &RunResults) -> impl std::iter::Iterator<Item = (String, Bencher)> {
-    result.point_results.iter().map(|(key, points)| {
-        let name = if points.no_unit_conversion {
-            "Data"
-        } else {
-            "Memory"
+fn points_iterator(run_results: &RunResults) -> impl std::iter::Iterator<Item = (String, Bencher)> {
+    run_results.point_results.iter().map(|(key, points)| {
+        // All points should have the same unit because they are the same point from different runs
+        let name = match points.result.get(0) {
+            Some(PointValue::Size(_)) => "Memory",
+            Some(PointValue::Custom(name, _)) => name,
+            None => "undefined",
         };
         let mut map = HashMap::new();
-        let avg_min_max = avg_min_max::<u64, u64>(&points.result);
+        let avg_min_max = avg_min_max::<u64, u64>(
+            &points
+                .result
+                .iter()
+                .map(|p| p.values())
+                .collect::<Vec<u64>>(),
+        );
         map.insert(
             name,
-            Latency {
+            Truple {
                 value: Decimal::from_i128_with_scale(avg_min_max.avg as i128, 0),
                 lower_value: Decimal::from_i128_with_scale(avg_min_max.min as i128, 0),
                 upper_value: Decimal::from_i128_with_scale(avg_min_max.max as i128, 0),
             },
         );
-        (bencher_key(result, key), Bencher::Latency(map))
+        (bencher_key(run_results, &key), Bencher::Latency(map))
     })
 }
 

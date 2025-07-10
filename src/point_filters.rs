@@ -49,9 +49,27 @@ static SMAPS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
         .expect("Could not parse regexp")
 });
 
+/// Example: TESTCASE_PROFILING: generatehtml:data: 2453
 static TESTCASE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^TESTCASE_PROFILING: (.*?) (\d+)$").expect("Could not parse regexp")
+    Regex::new(r"^TESTCASE_PROFILING: (.*?):(.*?):(\d+)$").expect("Could not parse regexp")
 });
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum PointValue {
+    /// Size in kb
+    Size(u64),
+    /// Other measurement
+    Custom(String, u64),
+}
+
+impl PointValue {
+    pub(crate) fn values(&self) -> u64 {
+        match self {
+            PointValue::Size(v) => v.clone(),
+            PointValue::Custom(_, v) => v.clone(),
+        }
+    }
+}
 
 #[derive(Debug)]
 /// A parsed trace point metric
@@ -59,9 +77,7 @@ pub(crate) struct Point<'a> {
     /// The name you gave to this point
     pub(crate) name: String,
     /// The value of the point
-    pub(crate) value: u64,
-    /// Do not convert units
-    pub(crate) no_unit_conversion: bool,
+    pub(crate) point_value: PointValue,
     /// The type of point this matches to
     pub(crate) point_type: PointType,
     /// The trace this matches to
@@ -75,9 +91,6 @@ pub(crate) struct PointFilter {
     pub(crate) name: String,
     /// We substring match on this
     pub(crate) match_str: String,
-    /// Should we not assume this is in kb?
-    #[serde(default)]
-    pub(crate) no_unit_conversion: bool,
     /// With this we combine all points that match a substring
     #[serde(default)]
     pub(crate) combined: bool,
@@ -88,7 +101,6 @@ impl PointFilter {
         PointFilter {
             name,
             match_str,
-            no_unit_conversion: false,
             combined: false,
         }
     }
@@ -118,8 +130,7 @@ impl PointFilter {
                     + "/"
                     + self.name.as_str()
                     + suffix.as_str(),
-                value,
-                no_unit_conversion: self.no_unit_conversion,
+                point_value: PointValue::Size(value),
                 trace: Some(trace),
                 point_type: PointType::MemoryUrl,
             })
@@ -146,8 +157,7 @@ impl PointFilter {
                 .expect("Could not parse");
             Some(Point {
                 name: run_config.run_args.url.to_owned() + "/" + self.name.as_str(),
-                value,
-                no_unit_conversion: self.no_unit_conversion,
+                point_value: PointValue::Size(value),
                 trace: Some(trace),
                 point_type: PointType::Smaps,
             })
@@ -169,8 +179,7 @@ impl PointFilter {
             .expect("Could not parse value");
         Some(Point {
             name: run_config.run_args.url.to_owned() + "/" + self.name.as_str(),
-            value,
-            no_unit_conversion: self.no_unit_conversion,
+            point_value: PointValue::Size(value),
             trace: Some(trace),
             point_type: PointType::MemoryReport,
         })
@@ -184,8 +193,13 @@ impl PointFilter {
         trace: &'a Trace,
     ) -> Option<Point<'a>> {
         let case_name = groups.get(1).expect("Could not find match").as_str();
-        let value = groups
+        let data_name = groups
             .get(2)
+            .expect("Could not find match")
+            .as_str()
+            .to_owned();
+        let value = groups
+            .get(3)
             .expect("Could not find match")
             .as_str()
             .parse()
@@ -193,8 +207,7 @@ impl PointFilter {
         if case_name.contains(&self.match_str) {
             Some(Point {
                 name: run_config.run_args.url.to_owned() + "/",
-                value,
-                no_unit_conversion: self.no_unit_conversion,
+                point_value: PointValue::Custom(data_name, value),
                 trace: Some(trace),
                 point_type: PointType::Testcase,
             })
@@ -289,8 +302,12 @@ impl PointFilter {
                     } else {
                         Point {
                             name,
-                            value: vals.iter().map(|p| p.value).sum(),
-                            no_unit_conversion: vals.first().unwrap().no_unit_conversion,
+                            point_value: PointValue::Size(vals.iter().map(|p| match p.point_value{
+                                PointValue::Size(s) => s,
+                                PointValue::Custom(_, _) => {
+                                    error!("Combined Custom Points are not supported at the moment"); 0
+                                },
+                            }).sum()),
                             trace: None,
                             point_type: PointType::Combined,
                         }

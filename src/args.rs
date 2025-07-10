@@ -41,9 +41,9 @@ enum PerRun {
     PerRun(RunArgs),
 }
 
-impl TryFrom<&Args> for RunArgs {
-    fn try_from(value: &Args) -> Result<Self, Self::Error> {
-        match &value.per_run {
+impl TryFrom<Args> for RunArgs {
+    fn try_from(value: Args) -> Result<Self, Self::Error> {
+        match value.per_run {
             Some(PerRun::PerRun(run_args)) => Ok(run_args.to_owned()),
             None => Err(anyhow!("Could not convert")),
         }

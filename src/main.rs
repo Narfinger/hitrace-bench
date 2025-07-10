@@ -11,7 +11,11 @@ use trace::Trace;
 use utils::{FilterErrors, FilterResults, PointResults, RunResults, avg_min_max};
 use yansi::{Condition, Paint};
 
-use crate::{args::RunArgs, point_filters::PointFilter, utils::PointResult};
+use crate::{
+    args::RunArgs,
+    point_filters::{PointFilter, PointValue},
+    utils::PointResult,
+};
 
 mod args;
 mod bencher;
@@ -56,17 +60,9 @@ fn print_differences(args: &RunArgs, results: RunResults) {
         let mut sorted_points: Vec<_> = results.point_results.into_iter().collect();
         sorted_points.sort_by(|x, y| x.0.cmp(&y.0));
         for (key, val) in sorted_points {
-            let avg_min_max = avg_min_max::<u64, u64>(&val.result);
-            if val.no_unit_conversion {
-                println!(
-                    "{}: {} {} {} ({} runs)",
-                    key,
-                    avg_min_max.avg.yellow().whenever(Condition::TTY_AND_COLOR),
-                    avg_min_max.min.green().whenever(Condition::TTY_AND_COLOR),
-                    avg_min_max.max.red().whenever(Condition::TTY_AND_COLOR),
-                    avg_min_max.number
-                );
-            } else {
+            let avg_min_max =
+                avg_min_max::<u64, u64>(&val.result.iter().map(|p| p.values()).collect::<Vec<_>>());
+            if let Some(&PointValue::Size(_)) = val.result.get(0) {
                 println!(
                     "{}: {} {} {}  ({} runs)",
                     key,
@@ -80,6 +76,15 @@ fn print_differences(args: &RunArgs, results: RunResults) {
                         .red()
                         .whenever(Condition::TTY_AND_COLOR),
                     avg_min_max.number,
+                );
+            } else {
+                println!(
+                    "{}: {} {} {} ({} runs)",
+                    key,
+                    avg_min_max.avg.yellow().whenever(Condition::TTY_AND_COLOR),
+                    avg_min_max.min.green().whenever(Condition::TTY_AND_COLOR),
+                    avg_min_max.max.red().whenever(Condition::TTY_AND_COLOR),
+                    avg_min_max.number
                 );
             }
         }
@@ -125,10 +130,9 @@ fn run_runconfig_points(run_config: &RunConfig, traces: &[Trace], points: &mut P
         let key = p.name.to_owned();
         points
             .entry(key)
-            .and_modify(|v| v.result.push(p.value))
+            .and_modify(|v| v.result.push(p.point_value.clone()))
             .or_insert(PointResult {
-                no_unit_conversion: p.no_unit_conversion,
-                result: vec![p.value],
+                result: vec![p.point_value],
             });
     }
 }
@@ -236,7 +240,6 @@ fn main() -> Result<()> {
                 PointFilter {
                     name: String::from("Explicit"),
                     match_str: String::from("explicit"),
-                    no_unit_conversion: false,
                     combined: false,
                 },
                 PointFilter::new(String::from("Resident"), String::from("resident")),
@@ -246,14 +249,16 @@ fn main() -> Result<()> {
                 PointFilter {
                     name: String::from("resident-smaps"),
                     match_str: String::from("resident-according-to-smaps"),
-                    no_unit_conversion: false,
                     combined: true,
                 },
             ];
-
+            let run_args = args
+                .clone()
+                .try_into()
+                .context("Did you specify enough args for run?")?;
             vec![RunConfig::new(
                 args.clone(),
-                RunArgs::default(),
+                run_args,
                 filters,
                 point_filters,
             )]

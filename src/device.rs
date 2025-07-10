@@ -66,6 +66,7 @@ fn device_file_paths(file_name: &str, bundle_name: &str, is_rooted: bool) -> Dev
 /// Execute the hdc commands on the device.
 pub(crate) fn exec_hdc_commands(run_args: &RunArgs, is_rooted: bool) -> Result<PathBuf> {
     info!("Executing hdc commands");
+    info!("With args {:?}", run_args);
     let hdc = which::which("hdc").context("Is hdc in the path?")?;
     // stop the app before starting the test
     Command::new(&hdc)
