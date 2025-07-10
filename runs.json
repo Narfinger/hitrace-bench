@@ -2,6 +2,8 @@
 // Different {} correspond to completely different runs which can have
 // different filters and different arguments
 [
+
+    /*
     {
         "run_args": {
             "url": "https://www.google.com", // the url to test
@@ -92,6 +94,7 @@
             }
         ]
     },
+    */
     {
         "run_args": {
             "bencher": true,

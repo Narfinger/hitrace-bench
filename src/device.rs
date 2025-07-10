@@ -114,6 +114,7 @@ pub(crate) fn exec_hdc_commands(run_args: &RunArgs, is_rooted: bool) -> Result<P
         .output()?;
 
     // start the ability
+    info!("Starting ability with url {}", url);
     let mut cmd_args = vec![
         "shell",
         "aa",

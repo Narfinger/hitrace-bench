@@ -49,9 +49,9 @@ static SMAPS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
         .expect("Could not parse regexp")
 });
 
-/// Example: TESTCASE_PROFILING: generatehtml:data: 2453
+/// Example: TESTCASE_PROFILING: generatehtml:data 2453
 static TESTCASE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^TESTCASE_PROFILING: (.*?):(.*?):(\d+)$").expect("Could not parse regexp")
+    Regex::new(r"^TESTCASE_PROFILING: (.*?):(.*?) (\d+)$").expect("Could not parse regexp")
 });
 
 #[derive(Clone, Debug, PartialEq, Eq)]

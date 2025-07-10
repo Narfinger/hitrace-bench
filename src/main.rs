@@ -251,6 +251,10 @@ fn main() -> Result<()> {
                     match_str: String::from("resident-according-to-smaps"),
                     combined: true,
                 },
+                PointFilter::new(
+                    String::from("parsefromstring"),
+                    String::from("parsefromstring"),
+                ),
             ];
             let run_args = args
                 .clone()
