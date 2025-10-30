@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -52,6 +52,14 @@ impl TryFrom<&Args> for RunArgs {
     type Error = anyhow::Error;
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) enum WebDriverCmd {
+    Click(String),
+    /// In seconds
+    Sleep(u64),
+    Text(String),
+}
+
 #[derive(Clone, Parser, Debug, Deserialize)]
 #[command(version, about, long_about = None)]
 /// Run servo on an open harmony device and collect timing information
@@ -90,6 +98,9 @@ pub(crate) struct RunArgs {
     #[arg(long, trailing_var_arg(true), allow_hyphen_values(true), num_args=0..)]
     #[serde(default = "default_commands")]
     pub(crate) commands: Option<Vec<String>>,
+
+    #[arg(skip)]
+    pub(crate) webdriver: Option<Vec<WebDriverCmd>>,
 }
 
 impl Default for RunArgs {
@@ -102,6 +113,7 @@ impl Default for RunArgs {
             sleep: default_sleep(),
             bundle_name: default_bundle_name(),
             commands: default_commands(),
+            webdriver: None,
         }
     }
 }

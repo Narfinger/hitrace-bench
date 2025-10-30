@@ -63,6 +63,14 @@ fn device_file_paths(file_name: &str, bundle_name: &str, is_rooted: bool) -> Dev
     }
 }
 
+pub(crate) fn forward_port(port: u16) -> Result<()> {
+    let hdc = which::which("hdc").context("Is hdc in the path?")?;
+    Command::new(&hdc)
+        .args(["fport", &format!("tcp:{}", port), &format!("tcp:{}", port)])
+        .output()?;
+    Ok(())
+}
+
 /// Execute the hdc commands on the device.
 pub(crate) fn exec_hdc_commands(run_args: &RunArgs, is_rooted: bool) -> Result<PathBuf> {
     info!("Executing hdc commands");

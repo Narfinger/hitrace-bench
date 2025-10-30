@@ -21,6 +21,7 @@ mod point_filters;
 mod runconfig;
 mod trace;
 mod utils;
+mod webdriver;
 
 /// Print the differences
 fn print_differences(args: &RunArgs, results: RunResults) {

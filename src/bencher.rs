@@ -59,7 +59,9 @@ fn filter_iterator(result: &RunResults) -> impl std::iter::Iterator<Item = (Stri
 }
 
 /// Creates an iterator for the point results with the appropriate map
-fn points_iterator(result: &RunResults) -> impl std::iter::Iterator<Item = (String, Bencher)> {
+fn points_iterator<'a>(
+    result: &'a RunResults,
+) -> impl std::iter::Iterator<Item = (String, Bencher<'a>)> {
     result.point_results.iter().map(|(key, points)| {
         let name = if points.no_unit_conversion {
             "Data"
