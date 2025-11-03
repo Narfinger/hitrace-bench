@@ -183,11 +183,17 @@ fn run_runconfigs(args: &Args, run_configs: &Vec<RunConfig>, use_bencher: bool) 
             )?;
         }
 
+        let webdriver_results = run_configs
+            .iter()
+            .map(webdriver::run_webdriver)
+            .collect::<Result<Vec<serde_json::Value>>>()
+            .context("Error in at least one webdriver script")?;
         bencher::write_results(RunResults {
             prepend: args.prepend.clone(),
             filter_results,
             errors: filter_errors,
             point_results,
+            webdriver_results,
         })
         .context("Error in writing bencher results")?
     } else {
@@ -201,6 +207,7 @@ fn run_runconfigs(args: &Args, run_configs: &Vec<RunConfig>, use_bencher: bool) 
                 &mut errors,
                 &mut point_results,
             )?;
+            let webdriver_results = vec![webdriver::run_webdriver(run_config)?];
             print_differences(
                 &run_config.run_args,
                 RunResults {
@@ -208,6 +215,7 @@ fn run_runconfigs(args: &Args, run_configs: &Vec<RunConfig>, use_bencher: bool) 
                     filter_results,
                     errors,
                     point_results,
+                    webdriver_results,
                 },
             );
         }
@@ -257,6 +265,7 @@ fn main() -> Result<()> {
                 RunArgs::default(),
                 filters,
                 point_filters,
+                vec![],
             )]
         }
     };

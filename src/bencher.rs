@@ -86,17 +86,24 @@ fn points_iterator<'a>(
 /// We also will append it to the bench.json file instead of overwriting it so supsequent runs can be recorded.
 /// We also add some custom strings to the filter.
 pub(crate) fn write_results(result: RunResults) -> anyhow::Result<()> {
-    let filters_iter = filter_iterator(&result);
-    let points_iter = points_iterator(&result);
+    {
+        let filters_iter = filter_iterator(&result);
+        let points_iter = points_iterator(&result);
+        let b: HashMap<String, Bencher> = filters_iter.chain(points_iter).collect();
+        let file = File::create("bench.json").context("Could not create bench.json file")?;
+        let writer = BufWriter::new(file);
+        serde_json::to_writer_pretty(writer, &b).context("Could not serialize results")?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&b).context("Could not serialize results")?
+        );
+    }
 
-    let b: HashMap<String, Bencher> = filters_iter.chain(points_iter).collect();
-
-    let file = File::create("bench.json").context("Could not create bench.json file")?;
-    let writer = BufWriter::new(file);
-    serde_json::to_writer_pretty(writer, &b).context("Could not serialize results")?;
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&b).context("Could not serialize results")?
-    );
+    {
+        let file = File::create("webdriver.json").context("Webdriver json")?;
+        let writer = BufWriter::new(file);
+        serde_json::to_writer_pretty(writer, &result.webdriver_results)
+            .context("Could not serialize results")?;
+    }
     Ok(())
 }

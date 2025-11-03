@@ -1,51 +1,50 @@
 use std::{thread, time::Duration};
 
-use crate::args::{RunArgs, WebDriverCmd};
+use crate::{args::WebDriverCmd, device, runconfig::RunConfig};
 use anyhow::{Context, Result, anyhow};
-use webdriver_client::{Driver, HttpDriverBuilder, LocationStrategy, messages::NewSessionCmd};
+use serde_json::Value;
+use thirtyfour::{By, DesiredCapabilities, WebDriver};
 
 /// Run a webdriver script defined in runargs and return the result of texts.
-pub(crate) fn run_webdriver(runargs: &RunArgs) -> Result<Vec<String>> {
-    let Some(ref webdriver_cmds) = runargs.webdriver else {
-        log::error!("No webdriver commands given");
-        return Err(anyhow!("No webdriver commands were given"));
-    };
-    let driver = HttpDriverBuilder::default()
-        .url("http://127.0.0.1:7000")
-        .build()
-        .map_err(|_| anyhow!("Could not connect Webdriver"))?;
+pub(crate) async fn run_webdriver(run_config: &RunConfig) -> Result<Value> {
+    device::forward_port(7000)?;
+    let caps = DesiredCapabilities::firefox();
 
-    let mut params = NewSessionCmd::default();
-    params.reset_always_match();
+    let driver = WebDriver::new("http://127.0.0.1:7000", caps).await?;
 
     thread::sleep(Duration::from_secs(5));
 
-    let session = driver.session(&params)?;
-
-    let mut text_vector = Vec::new();
-    for arg in webdriver_cmds {
+    for arg in &run_config.webdriver_script {
         match arg {
+            WebDriverCmd::GoTo(url) => {
+                driver.goto(url).await?;
+            }
             WebDriverCmd::Click(element) => {
-                let element = session
-                    .find_element(&element, LocationStrategy::Css)
+                let element = driver
+                    .find(By::Id(element))
+                    .await
                     .context("Trying to find element {element}")?;
                 element
                     .click()
+                    .await
                     .context("Trying to click element {element}")?;
             }
             WebDriverCmd::Sleep(seconds) => {
                 thread::sleep(Duration::from_secs(*seconds));
             }
-            WebDriverCmd::Text(element) => {
-                let element = session
-                    .find_element(&element, LocationStrategy::Css)
-                    .context("Trying to find elmeent {element}")?;
-                let text = element
-                    .text()
-                    .context("Trying to get text of element {element}")?;
-                text_vector.push(text);
+            WebDriverCmd::ExecJS(s) => {
+                let res = driver
+                    .execute(s, Vec::new())
+                    .await
+                    .map(|v| v.json().clone())
+                    .context("Could not execute javascript");
+                driver.quit();
+                return res;
             }
         }
     }
-    Ok(text_vector)
+    driver.quit();
+    Err(anyhow!(
+        "You did not end with a JS execution to get some value"
+    ))
 }

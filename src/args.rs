@@ -53,11 +53,13 @@ impl TryFrom<&Args> for RunArgs {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "cmd", content = "param")]
 pub(crate) enum WebDriverCmd {
+    GoTo(String),
     Click(String),
     /// In seconds
     Sleep(u64),
-    Text(String),
+    ExecJS(String),
 }
 
 #[derive(Clone, Parser, Debug, Deserialize)]
@@ -98,9 +100,11 @@ pub(crate) struct RunArgs {
     #[arg(long, trailing_var_arg(true), allow_hyphen_values(true), num_args=0..)]
     #[serde(default = "default_commands")]
     pub(crate) commands: Option<Vec<String>>,
+}
 
-    #[arg(skip)]
-    pub(crate) webdriver: Option<Vec<WebDriverCmd>>,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct WebDriverScript {
+    pub(crate) cmds: Vec<WebDriverCmd>,
 }
 
 impl Default for RunArgs {
@@ -113,7 +117,6 @@ impl Default for RunArgs {
             sleep: default_sleep(),
             bundle_name: default_bundle_name(),
             commands: default_commands(),
-            webdriver: None,
         }
     }
 }

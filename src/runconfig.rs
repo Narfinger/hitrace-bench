@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::{
     Filter, Trace,
-    args::{Args, RunArgs},
+    args::{Args, RunArgs, WebDriverCmd},
     point_filters::PointFilter,
 };
 
@@ -19,6 +19,8 @@ pub(crate) struct RunConfig {
     pub(crate) filters: Vec<Filter>,
     /// Point filters
     pub(crate) point_filters: Vec<PointFilter>,
+    /// A single Webdriver script
+    pub(crate) webdriver_script: Vec<WebDriverCmd>,
 }
 
 impl Display for RunConfig {
@@ -42,12 +44,14 @@ impl RunConfig {
         run_args: RunArgs,
         filters: Vec<Filter>,
         point_filters: Vec<PointFilter>,
+        webdriver_script: Vec<WebDriverCmd>,
     ) -> Self {
         RunConfig {
             args,
             run_args,
             filters,
             point_filters,
+            webdriver_script,
         }
     }
 }
@@ -82,6 +86,8 @@ pub(crate) struct RunConfigJson {
     pub(crate) filters: Vec<JsonFilterDescription>,
     #[serde(default)]
     pub(crate) point_filters: Vec<PointFilter>,
+    #[serde(default)]
+    pub(crate) webdriver_scripts: Vec<WebDriverCmd>,
 }
 
 /// Uses `Args` and `RunConfigJson` to create a `RunConfig`
@@ -95,6 +101,7 @@ pub(crate) fn into_run_config(args: Args, run_config_json: RunConfigJson) -> Run
             .map(|f| f.into())
             .collect(),
         point_filters: run_config_json.point_filters,
+        webdriver_script: run_config_json.webdriver_scripts,
     }
 }
 

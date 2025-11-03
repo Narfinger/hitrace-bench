@@ -1,5 +1,6 @@
 use std::{collections::HashMap, iter::Sum};
 
+use serde_json::Value;
 use time::Duration;
 
 /// Nice struct for having average, minimum, maximum and number in a handle value
@@ -56,4 +57,6 @@ pub(crate) struct RunResults {
     pub(crate) errors: FilterErrors,
     /// Point Results
     pub(crate) point_results: PointResults,
+    /// Raw Json value for webdriver results
+    pub(crate) webdriver_results: Vec<Value>,
 }

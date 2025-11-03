@@ -63,6 +63,7 @@ fn device_file_paths(file_name: &str, bundle_name: &str, is_rooted: bool) -> Dev
     }
 }
 
+/// Forwards the given port for the device
 pub(crate) fn forward_port(port: u16) -> Result<()> {
     let hdc = which::which("hdc").context("Is hdc in the path?")?;
     Command::new(&hdc)

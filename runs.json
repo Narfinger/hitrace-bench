@@ -107,5 +107,17 @@
                 "no_unit_conversion": true
             }
         ]
+    },
+    {
+        "run_args": {
+            "bencher": true
+        },
+        "webdriver_cmds": [
+            { "cmd": "Goto", "param": "https://www.servospeedometer.netlify.app"},
+            { "cmd": "Sleep", "param": 5},
+            { "cmd": "Click", "param": ".start-tests-button"},
+            { "cmd": "Sleep", "param": 60},
+            { "cmd": "ExecJS", "param": "return globalThis.benchmarkClient._formattedJSONResult({});"}
+        ]
     }
 ]
