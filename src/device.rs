@@ -167,6 +167,11 @@ pub(crate) fn just_start(run_args: &RunArgs, url: String) -> Result<(), anyhow::
         .output()
         .context("Could not execute hdc")?;
 
+    // touch the screen
+    Command::new(&hdc).args(["shell", "uinput", "-T", "-d", "100", "100"]).output().context("Could not touch down")?;
+
+    Command::new(&hdc).args(["shell", "uinput", "-T", "-u", "100", "100"]).output().context("Could not touch down")?;
+
     let mut cmd_args = vec![
         "shell",
         "aa",

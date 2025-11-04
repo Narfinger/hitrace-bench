@@ -103,8 +103,9 @@ pub(crate) struct RunArgs {
     pub(crate) commands: Option<Vec<String>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub(crate) struct WebDriverScript {
+    pub(crate) name: String,
     pub(crate) cmds: Vec<WebDriverCmd>,
 }
 

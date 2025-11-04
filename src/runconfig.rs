@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::{
     Filter, Trace,
-    args::{Args, RunArgs, WebDriverCmd},
+    args::{Args, RunArgs, WebDriverCmd, WebDriverScript},
     point_filters::PointFilter,
 };
 
@@ -20,7 +20,7 @@ pub(crate) struct RunConfig {
     /// Point filters
     pub(crate) point_filters: Vec<PointFilter>,
     /// A single Webdriver script
-    pub(crate) webdriver_script: Vec<WebDriverCmd>,
+    pub(crate) webdriver_script: Option<WebDriverScript>,
 }
 
 impl Display for RunConfig {
@@ -44,7 +44,7 @@ impl RunConfig {
         run_args: RunArgs,
         filters: Vec<Filter>,
         point_filters: Vec<PointFilter>,
-        webdriver_script: Vec<WebDriverCmd>,
+        webdriver_script: Option<WebDriverScript>,
     ) -> Self {
         RunConfig {
             args,
@@ -87,7 +87,7 @@ pub(crate) struct RunConfigJson {
     #[serde(default)]
     pub(crate) point_filters: Vec<PointFilter>,
     #[serde(default)]
-    pub(crate) webdriver_script: Vec<WebDriverCmd>,
+    pub(crate) webdriver_script: Option<WebDriverScript>,
 }
 
 /// Uses `Args` and `RunConfigJson` to create a `RunConfig`
@@ -124,7 +124,7 @@ pub(crate) fn read_run_file(path: &PathBuf, args: &Args) -> Result<Vec<RunConfig
         result
             .into_iter()
             .map(|r| {
-                if r.filters.is_empty() && r.point_filters.is_empty() && r.webdriver_script.is_empty() {
+                if r.filters.is_empty() && r.point_filters.is_empty() && r.webdriver_script.is_none() {
                     Err(anyhow!(
                         "You did not specify a filter or pointfilter or webdriver for at least one run. {:?}", r
                     ))

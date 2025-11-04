@@ -100,6 +100,7 @@ pub(crate) fn write_results(result: RunResults) -> anyhow::Result<()> {
     }
 
     {
+        log::info!("Writing webdriver files");
         let file = File::create("webdriver.json").context("Webdriver json")?;
         let writer = BufWriter::new(file);
         serde_json::to_writer_pretty(writer, &result.webdriver_results)

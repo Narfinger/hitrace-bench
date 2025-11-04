@@ -187,9 +187,10 @@ fn run_runconfigs(args: &Args, run_configs: &Vec<RunConfig>, use_bencher: bool) 
 
         let webdriver_results = run_configs
             .iter()
-            .map(|config| webdriver::run_webdriver(config))
-            .collect::<Result<Vec<serde_json::Value>>>()
-            .context("Error in at least one webdriver script")?;
+            .filter_map(|config| if config.webdriver_script.is_some() {
+               Some(webdriver::run_webdriver(config).unwrap())} else {None})
+            .collect::<Vec<(String, serde_json::Value)>>();
+        error!("Webdriver results {:?}", webdriver_results);
         bencher::write_results(RunResults {
             prepend: args.prepend.clone(),
             filter_results,
@@ -267,7 +268,7 @@ fn main() -> Result<()> {
                 RunArgs::default(),
                 filters,
                 point_filters,
-                vec![],
+                None,
             )]
         }
     };

@@ -58,5 +58,5 @@ pub(crate) struct RunResults {
     /// Point Results
     pub(crate) point_results: PointResults,
     /// Raw Json value for webdriver results
-    pub(crate) webdriver_results: Vec<Value>,
+    pub(crate) webdriver_results: Vec<(String, Value)>,
 }
