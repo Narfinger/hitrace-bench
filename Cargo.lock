@@ -567,6 +567,7 @@ dependencies = [
  "serde_path_to_error",
  "thirtyfour",
  "time",
+ "tokio",
  "which",
  "yansi",
 ]

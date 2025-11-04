@@ -185,7 +185,7 @@ fn run_runconfigs(args: &Args, run_configs: &Vec<RunConfig>, use_bencher: bool) 
 
         let webdriver_results = run_configs
             .iter()
-            .map(webdriver::run_webdriver)
+            .map(|config| webdriver::run_webdriver(config))
             .collect::<Result<Vec<serde_json::Value>>>()
             .context("Error in at least one webdriver script")?;
         bencher::write_results(RunResults {
