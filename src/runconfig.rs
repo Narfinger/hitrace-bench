@@ -87,7 +87,7 @@ pub(crate) struct RunConfigJson {
     #[serde(default)]
     pub(crate) point_filters: Vec<PointFilter>,
     #[serde(default)]
-    pub(crate) webdriver_scripts: Vec<WebDriverCmd>,
+    pub(crate) webdriver_script: Vec<WebDriverCmd>,
 }
 
 /// Uses `Args` and `RunConfigJson` to create a `RunConfig`
@@ -101,7 +101,7 @@ pub(crate) fn into_run_config(args: Args, run_config_json: RunConfigJson) -> Run
             .map(|f| f.into())
             .collect(),
         point_filters: run_config_json.point_filters,
-        webdriver_script: run_config_json.webdriver_scripts,
+        webdriver_script: run_config_json.webdriver_script,
     }
 }
 
@@ -124,9 +124,9 @@ pub(crate) fn read_run_file(path: &PathBuf, args: &Args) -> Result<Vec<RunConfig
         result
             .into_iter()
             .map(|r| {
-                if r.filters.is_empty() && r.point_filters.is_empty() {
+                if r.filters.is_empty() && r.point_filters.is_empty() && r.webdriver_script.is_empty() {
                     Err(anyhow!(
-                        "You did not specify a filter or pointfilter for at least one run."
+                        "You did not specify a filter or pointfilter or webdriver for at least one run. {:?}", r
                     ))
                 } else {
                     Ok(into_run_config(args.clone(), r))

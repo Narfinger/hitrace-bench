@@ -76,12 +76,6 @@ pub(crate) fn forward_port(port: u16) -> Result<()> {
 pub(crate) fn exec_hdc_commands(run_args: &RunArgs, is_rooted: bool) -> Result<PathBuf> {
     info!("Executing hdc commands");
     let hdc = which::which("hdc").context("Is hdc in the path?")?;
-    // stop the app before starting the test
-    Command::new(&hdc)
-        .args(["shell", "aa", "force-stop", &run_args.bundle_name])
-        .output()
-        .context("Could not execute hdc")?;
-
     let url = if run_args.url.contains("file:///") {
         let device_file_path = device_file_paths(&run_args.url, &run_args.bundle_name, is_rooted);
 
@@ -121,29 +115,7 @@ pub(crate) fn exec_hdc_commands(run_args: &RunArgs, is_rooted: bool) -> Result<P
         ])
         .output()?;
 
-    // start the ability
-    let mut cmd_args = vec![
-        "shell",
-        "aa",
-        "start",
-        "-a",
-        "EntryAbility",
-        "-b",
-        &run_args.bundle_name,
-        "-U",
-        &url,
-        "--ps=--pref",
-        "js_disable_jit=true",
-        "--ps=--tracing-filter",
-        "trace",
-        "--ps=--pref",
-        "webdriver",
-    ];
-    if let Some(ref v) = run_args.commands {
-        let mut v = v.iter().map(|s| s.as_str()).collect();
-        cmd_args.append(&mut v);
-    }
-    Command::new(&hdc).args(cmd_args).output()?;
+    just_start(run_args, url)?;
     info!("Sleeping for {}", run_args.sleep);
     std::thread::sleep(std::time::Duration::from_secs(run_args.sleep));
 
@@ -184,4 +156,39 @@ pub(crate) fn exec_hdc_commands(run_args: &RunArgs, is_rooted: bool) -> Result<P
         ])
         .output()?;
     Ok(tmp_path)
+}
+
+/// Just start the app
+pub(crate) fn just_start(run_args: &RunArgs, url: String) -> Result<(), anyhow::Error> {
+    let hdc = which::which("hdc").context("Is hdc in the path?")?;
+    // stop the app before starting the test
+    Command::new(&hdc)
+        .args(["shell", "aa", "force-stop", &run_args.bundle_name])
+        .output()
+        .context("Could not execute hdc")?;
+
+    let mut cmd_args = vec![
+        "shell",
+        "aa",
+        "start",
+        "-a",
+        "EntryAbility",
+        "-b",
+        &run_args.bundle_name,
+        "-U",
+        &url,
+        "--ps=--pref",
+        "js_disable_jit=true",
+        "--ps=--tracing-filter",
+        "trace",
+        "--psn=--webdriver",
+        "--psn=--ignore-certificate-errors"
+    ];
+    if let Some(ref v) = run_args.commands {
+        let mut v = v.iter().map(|s| s.as_str()).collect();
+        cmd_args.append(&mut v);
+    }
+    info!("Running with {cmd_args:?}");
+    Command::new(hdc).args(cmd_args).output()?;
+    Ok(())
 }

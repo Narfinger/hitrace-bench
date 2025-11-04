@@ -174,13 +174,15 @@ fn run_runconfigs(args: &Args, run_configs: &Vec<RunConfig>, use_bencher: bool) 
         let mut filter_results = HashMap::new();
         let mut filter_errors = HashMap::new();
         let mut point_results = HashMap::new();
-        for run_config in run_configs {
-            run_runconfig(
-                run_config,
-                &mut filter_results,
-                &mut filter_errors,
-                &mut point_results,
-            )?;
+        if run_configs.iter().all(|r| !r.filters.is_empty() || !r.point_filters.is_empty()) {
+            for run_config in run_configs {
+                run_runconfig(
+                    run_config,
+                    &mut filter_results,
+                    &mut filter_errors,
+                    &mut point_results,
+                )?;
+            }
         }
 
         let webdriver_results = run_configs

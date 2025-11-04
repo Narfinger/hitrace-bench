@@ -56,6 +56,7 @@ impl TryFrom<&Args> for RunArgs {
 #[serde(tag = "cmd", content = "param")]
 pub(crate) enum WebDriverCmd {
     GoTo(String),
+    /// String is css identifier.
     Click(String),
     /// In seconds
     Sleep(u64),
